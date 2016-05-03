@@ -1,4 +1,4 @@
-function mysim_start
+function mysimSwarm_start
 %
 % simulation example for use of cloud dispersion model
 %

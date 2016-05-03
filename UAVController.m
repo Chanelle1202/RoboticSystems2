@@ -1,10 +1,13 @@
 classdef UAVController < handle
     %UAV controller class
     properties
-        gpsMemory;
+        posMemory;
+        posCurrent;
         cloudMemory;
-        uMemory;
+        cloudSpotted;
         target;
+        state
+        steps;
     end
     
     properties (Constant)
@@ -15,34 +18,53 @@ classdef UAVController < handle
         
         % Constructor
         function controller = UAVController()
-            controller.gpsMemory = [0; 0.01; 0];
+            controller.posMemory = [0;0;0];
             controller.cloudMemory = 0;
-            controller.uMemory = [0;0];
+            controller.state = 1;
+            controller.cloudSpotted = [0;0;0;0];
+            controller.steps = 0;
         end
         
-        function u = NavDecision(controller, gps, p, kk, dt, t)
-            if p<0.5 %nowhere near the cloud
-                u=[10;
-                    6-(1/30)*abs(cos(0.05*(kk-1)))*180/pi];
-            elseif (0.5<=p) && (p<1) %Outside the cloud
-                if p>= controller.cloudMemory
-                    u=[15; 0];
-                else
-                    controller.target = controller.gpsMemory;
-                    u = controller.how_to_move(gps);
-                end
-            else %Inside the cloud
-                if p>=controller.cloudMemory
-                    
+        function u = nav_decision(controller, p, kk)
+            switch controller.state
+                case 1 %state 1, spiral explore
+                    display('exploring for cloud')
+                    u = [20;
+                        (1/100)*exp(-(kk-1)*0.01)*180/pi];
+                    if abs(controller.desiredCloud-p)<0.15
+                        controller.state=2;
+                    end
+                case 2 %state 2, inside cloud
+                    display('inside cloud')
+                    u = [10; 6];
             end
-            controller.uMemory  = u;
+            controller.posMemory = controller.posCurrent;
         end
         
-        function u = how_to_move(controller)
-            difference = controller.target-gps;
-            u = [10*((pi/-abs(difference(3)))/pi/2); 
-                3*pi/180*(difference(3)/pi/2)];
-        end           
+        function set_current_pos(controller, gps)
+            currentHeading = mod(atan2d(gps(1)-controller.posMemory(1),...
+                gps(2)-controller.posMemory(1))+360, 360);
+            controller.posCurrent = [gps(1); gps(2); currentHeading];
+        end
+        
+        function u = move_to_target(controller)
+            headingToTarget = mod(atan2d(controller.target(1)-controller.posMemory(1),...
+                controller.target(2)-controller.posMemory(2))+360, 360) - controller.posCurrent(3);            
+            u = [10*((pi/2)-abs(headingToTarget)/pi/2);
+                3*pi/180*(headingToTarget/(pi/2))];
+        end
+            
+        function rand_target(controller, range)
+            x = controller.cloudSpotted(1)+randi([-range,range]);
+            y = controller.cloudSpotted(2)+randi([-range, range]);
+            controller.target = [x;y];
+        end  
+        
+        function target_from_memory(controller)
+            x = controller.posMemory + randi([-5,5]);
+            y = controller.posMemory + randi([-5,5]);
+            controller.target = [x; y];
+        end
             
             
                       
