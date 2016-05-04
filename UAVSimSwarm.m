@@ -8,8 +8,10 @@ classdef UAVSimSwarm < handle
     end
     
     properties 
-        controller;
+%         controller;
         battery;
+        id;
+        
     end
 
     methods
@@ -19,7 +21,7 @@ classdef UAVSimSwarm < handle
             uav.y = 0;
             uav.heading = 0;
             uav.history = [0,0];
-            uav.controller = UAVControllerSwarm();
+%             uav.controller = UAVControllerSwarm();
             uav.battery = 3600;
         end
        
@@ -62,7 +64,8 @@ classdef UAVSimSwarm < handle
         function plotUAV(uav)
             if uav.battery>0 %Don't plot UAV if battery has died
                 plot(uav.x, uav.y, 'o')
-                plot(uav.history(:,1), uav.history(:,2), '-')
+%                 plot(uav.history(:,1), uav.history(:,2), '.') %Uncomment
+%                 to see path
                 uav.history = [uav.history; uav.x, uav.y];
             end
         end

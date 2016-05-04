@@ -14,16 +14,18 @@ load 'cloud2.mat'
 t = 0;
 dt = 2;
 
-% initial channel simulation for comms
-channel = initChannel();
+
 
 % initialise all the agents
-numAgents = 3;
+numAgents = 4;
 agents(numAgents,1)=UAVSimSwarm;
 controllers(numAgents,1) = UAVControllerSwarm;
 
+% initial channel simulation for comms
+channel = initChannel();
+
 % initial targets to get coverage of the map
-intialTargets = [500 -500 500;-500 -500 500];%[500, 500, -500, -500; 500, -500, 500, -500];
+intialTargets = [500, 500, -500, -500; 500, -500, 500, -500];
 
 % open new figure window
 figure
@@ -34,40 +36,53 @@ for kk=1:1000,
     
     % time
     t = t + dt;
-    
-%     % simulate received message
-%     [rxMsgs{kk},channel] = simReceive(kk,channel);
-     
-    for j=1:numAgents
+         
+    for aa=1:numAgents
         
         % Take sensor readings from UAVSim
-        gps = agents(j).gps_sensor();
-        p = agents(j).cloud_sensor(cloud, t);
-        power = agents(j).update_battery(dt);
+        gps = agents(aa).gps_sensor();
+        p = agents(aa).cloud_sensor(cloud, t);
+        power = agents(aa).update_battery(dt);
         
         % Pass these sensor readings to the controller
-        controllers(j).set_current_pos(gps);
-        if controllers(j).launched == 0
-            controllers(j).target = intialTargets(:,j);
-            controllers(j).launched = 1;
+        controllers(aa).set_current_pos(gps);
+        if controllers(aa).launched == 0
+            agents(aa).id = aa;
+            controllers(aa).id = aa;
+            controllers(aa).target = intialTargets(:,aa);
+            controllers(aa).launched = 1;
         end
-%         txtMsg = controller.nav_decision(p,kk, dt);
-        controllers(j).nav_decision(p,kk,dt);
+        
+        if agents(aa).id ~= controllers(aa).id
+            display('Agents and controllers are mixed up');
+            break;
+        end
+        
+        % simulate received message
+        [rxMsgs,channel] = simReceive(channel);
+        
+        txMsgs = controllers(aa).nav_decision(p,kk, dt, rxMsgs);
+        
+        % simulate transmission
+        channel = simTransmit(txMsgs,channel);
         
     end
     
+    % simulate the comms
+    channel = simChannel(channel);
+    
     % Pass the decided velocity and turn curvature back to UAVSim to
     % move     
-    for j=1:numAgents
-        agents(j).move(controllers(j).u, dt)   
+    for aa=1:numAgents
+        agents(aa).move(controllers(aa).u, dt)   
     end
         
     % clear the axes for fresh plotting
     cla
     
     % plot robot locations
-    for j=1:numAgents
-        plotUAV(agents(j));
+    for aa=1:numAgents
+        plotUAV(agents(aa));
     end
     
     % plot the cloud contours
@@ -82,23 +97,23 @@ for kk=1:1000,
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+%% Communications from Arthur Richards
 function channel = initChannel()
 % initialize comms channel model
-channel.curMsgs = {};
-channel.newMsgs = {};
+channel.curMsgs = [];
+channel.newMsgs = [];
 
-function [rxMsgs,channel] = simReceive(aa,channel)
+function [rxMsgs,channel] = simReceive(channel)
 % simulate receiving messages
 % simple broadcast model - just get everything
 rxMsgs = channel.curMsgs;
 
-function channel = simTransmit(txMsgs,aa,channel)
+function channel = simTransmit(txMsgs,channel)
 % simulate transmitting a message
 % store it for next step
 channel.newMsgs = [channel.newMsgs txMsgs];
 
-function channel = simChannel(channel,x)
+function channel = simChannel(channel)
 % simple - everyone gets everything
 channel.curMsgs = channel.newMsgs;
-channel.newMsgs = {};
+channel.newMsgs = [];

@@ -20,6 +20,7 @@ classdef UAVController < handle
         end
         
         function u = nav_decision(controller, p, kk, dt)
+            txMsg = [];
             switch controller.state                                 
                 case 1 %state 1, spiral explore
                     display('exploring for cloud')
