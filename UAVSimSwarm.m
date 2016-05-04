@@ -1,4 +1,4 @@
-classdef UAVSim < handle
+classdef UAVSimSwarm < handle
     %UAVSim Class  
     properties (SetAccess = private,GetAccess = private)
         x; %actual position in x
@@ -7,27 +7,29 @@ classdef UAVSim < handle
         history;
     end
     
-    properties
+    properties 
+        controller;
         battery;
     end
 
     methods
         % Constructor
-        function uav = UAVSim()
+        function uav = UAVSimSwarm()
             uav.x = 0;
             uav.y = 0;
             uav.heading = 0;
             uav.history = [0,0];
+            uav.controller = UAVControllerSwarm();
             uav.battery = 3600;
         end
        
         % Take a sensor reading with the gps to find x and y positions
         function g = gps_sensor(uav)
-            g = zeros(2,1);
+            g = zeros(3,1);
             g(1) = uav.x + (rand()-0.5)*6; %plus/minus 3m gps noise
             g(2) = uav.y + (rand()-0.5)*6; %plus/minus 3m gps noise
         end
-        
+            
         %Take sensor reading of the pollution levels
         function p = cloud_sensor(uav, cloud, t)
             p = cloudsamp(cloud,uav.x,uav.y,t);

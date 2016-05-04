@@ -17,12 +17,17 @@ dt = 2;
 % initial channel simulation for comms
 channel = initChannel();
 
-uav = UAVSim();
-controller = UAVController();
+% initialise all the agents
+numAgents = 3;
+agents(numAgents,1)=UAVSimSwarm;
+controllers(numAgents,1) = UAVControllerSwarm;
+
+% initial targets to get coverage of the map
+intialTargets = [500 -500 500;-500 -500 500];%[500, 500, -500, -500; 500, -500, 500, -500];
 
 % open new figure window
 figure
-hold on % so each plot doesn't wipte the predecessor
+hold on % so each plot doesn't wipe the predecessor
 
 % main simulation loop
 for kk=1:1000,
@@ -30,30 +35,49 @@ for kk=1:1000,
     % time
     t = t + dt;
     
-    gps = uav.gps_sensor();
-    p = uav.cloud_sensor(cloud, t);
+%     % simulate received message
+%     [rxMsgs{kk},channel] = simReceive(kk,channel);
+     
+    for j=1:numAgents
+        
+        % Take sensor readings from UAVSim
+        gps = agents(j).gps_sensor();
+        p = agents(j).cloud_sensor(cloud, t);
+        power = agents(j).update_battery(dt);
+        
+        % Pass these sensor readings to the controller
+        controllers(j).set_current_pos(gps);
+        if controllers(j).launched == 0
+            controllers(j).target = intialTargets(:,j);
+            controllers(j).launched = 1;
+        end
+%         txtMsg = controller.nav_decision(p,kk, dt);
+        controllers(j).nav_decision(p,kk,dt);
+        
+    end
     
-    controller.set_current_pos(gps);    
-%     controller.target = [600;600];
-%     u = controller.move_to_target(dt);
-
-    u = controller.nav_decision(p,kk, dt);
-
-    uav.move(u, dt)
+    % Pass the decided velocity and turn curvature back to UAVSim to
+    % move     
+    for j=1:numAgents
+        agents(j).move(controllers(j).u, dt)   
+    end
+        
     % clear the axes for fresh plotting
     cla
     
-    % put information in the title
-    title(sprintf('t=%.1f secs Concentration=%.2f', t, p))
-        
-    % plot robot location
-    plotUAV(uav)
+    % plot robot locations
+    for j=1:numAgents
+        plotUAV(agents(j));
+    end
     
     % plot the cloud contours
     cloudplot(cloud,t)
     
+    % put information in the title
+    title(sprintf('t=%.1f secs', t))
+    
     % pause ensures that the plots update
-    pause(dt*0.1)
+    pause(0.01)
     
 end
 

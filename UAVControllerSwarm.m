@@ -1,10 +1,12 @@
-classdef UAVController < handle
+classdef UAVControllerSwarm < handle
     %UAV controller class
     properties
         posMemory;
         posCurrent;
         target;
         state;
+        launched;
+        u;
     end
     
     properties (Constant)
@@ -14,33 +16,43 @@ classdef UAVController < handle
     methods
         
         % Constructor
-        function controller = UAVController()
+        function controller = UAVControllerSwarm()
             controller.posMemory = [0;0;0];
             controller.state = 1;
+            controller.launched = 0;
         end
         
-        function u = nav_decision(controller, p, kk, dt)
-            switch controller.state                                 
-                case 1 %state 1, spiral explore
-                    display('exploring for cloud')
-                    u = [20;
-                        (1/100)*exp(-dt*(kk-1)*0.01)*180/pi];
-                    if abs(controller.desiredCloud-p)<0.15
-                        controller.state=2;
+        function nav_decision(controller, p, kk, dt)
+            % default transmit message
+            txMsg = [];
+            
+            switch controller.state
+                case 1 %state 1, head to target
+                    display('Moving towards target')
+                    controller.u = controller.move_to_target();
+                    if norm(controller.posCurrent(1:2) - controller.target)<40;
+                        controller.state = 2; %start exploring
                     end
-                case 2 %state 2, inside cloud boundary
-                    display('inside cloud')
-                    u = [10; 6]; %spin!
-                    if abs(controller.desiredCloud-p)>0.3
-                        controller.rand_target(10);
+                case 2 %state 2, spiral explore
+                    display('exploring for cloud')
+                    controller.u = [20;
+                        (1/30)*exp(-dt*(kk-1)*0.01)*180/pi];
+                    if abs(controller.desiredCloud-p)<0.15
                         controller.state=3;
                     end
+                case 3 %state 3, inside cloud boundary
+                    display('inside cloud')
+                    controller.u = [10; 6]; %spin!
+                    if abs(controller.desiredCloud-p)>0.3
+                        controller.rand_target(10);
+                        controller.state=4;
+                    end
                     
-                case 3 %state 3, explore current space for cloud boundary
+                case 4 %state 4, explore current space for cloud boundary
                     display('Moving towards target')
-                    u = controller.move_to_target();
+                    controller.u = controller.move_to_target();
                     if abs(controller.desiredCloud-p)<0.15
-                        controller.state=2; %inside the cloud boundary
+                        controller.state=3; %inside the cloud boundary
                     end                 
             end
             controller.posMemory = controller.posCurrent;
@@ -91,6 +103,7 @@ classdef UAVController < handle
     end
     
 end
+
 
 
 

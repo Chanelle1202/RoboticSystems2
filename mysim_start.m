@@ -12,10 +12,7 @@ load 'cloud2.mat'
 
 % time and time step
 t = 0;
-dt = 2;
-
-% initial channel simulation for comms
-channel = initChannel();
+dt = 4;
 
 uav = UAVSim();
 controller = UAVController();
@@ -30,13 +27,13 @@ for kk=1:1000,
     % time
     t = t + dt;
     
+    %sensors
     gps = uav.gps_sensor();
     p = uav.cloud_sensor(cloud, t);
+    power = uav.update_battery(dt);
     
     controller.set_current_pos(gps);    
-%     controller.target = [600;600];
-%     u = controller.move_to_target(dt);
-
+    
     u = controller.nav_decision(p,kk, dt);
 
     uav.move(u, dt)
@@ -53,28 +50,6 @@ for kk=1:1000,
     cloudplot(cloud,t)
     
     % pause ensures that the plots update
-    pause(dt*0.1)
+    pause(0.1)
     
 end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function channel = initChannel()
-% initialize comms channel model
-channel.curMsgs = {};
-channel.newMsgs = {};
-
-function [rxMsgs,channel] = simReceive(aa,channel)
-% simulate receiving messages
-% simple broadcast model - just get everything
-rxMsgs = channel.curMsgs;
-
-function channel = simTransmit(txMsgs,aa,channel)
-% simulate transmitting a message
-% store it for next step
-channel.newMsgs = [channel.newMsgs txMsgs];
-
-function channel = simChannel(channel,x)
-% simple - everyone gets everything
-channel.curMsgs = channel.newMsgs;
-channel.newMsgs = {};
